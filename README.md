@@ -135,7 +135,23 @@ node -v
     }
 }
 ```
-
+如果是window 系统, json 需要添加单独的配置：
+```json
+"mcpServers": {
+ "baidu-map": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@baidumap/mcp-server-baidu-map"
+      ],
+      "env": {
+        "BAIDU_MAP_API_KEY": "xxx"
+      },
+    }
+}
+```
 重启Claude，此时设置面板已经成功加载了百度地图MCP Server。在软件主界面对话框处可以看到有8个可用的MCP工具，点击可以查看详情。
 
 ![](./img/claude_setting_result.png)
