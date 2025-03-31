@@ -905,6 +905,7 @@ async function handleRoadTraffic(
     url.searchParams.append("radius", String(radius));
   }
   url.searchParams.append("ak", BAIDU_MAP_API_KEY);
+  url.searchParams.append("from", "node_mcp");
 
   const response = await fetch(url.toString());
   const data = await response.json() as RoadTrafficResponse;
@@ -941,6 +942,7 @@ async function handlePoiExtract(
   params.append("id", "75274677"); // 设备id
   params.append("msg_type", "text");
   params.append("ak", BAIDU_MAP_API_KEY);
+  params.append("from", "node_mcp");
 
   const submitResponse = await fetch(submitUrl, {
     method: "POST",
