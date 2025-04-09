@@ -390,9 +390,9 @@ async def map_directions(
  
 @mcp.tool()
 async def map_weather(
-    location: str,
-    district_id: int,
-    ctx: Context
+    ctx: Context,
+    location: str = None,
+    district_id: int = None,
 ) -> dict:
     """
     Name:
@@ -421,11 +421,15 @@ async def map_weather(
             "from": "py_mcp"
         }
         
+        # 必须提供 location 或 district_id 中的至少一项
+        if not location and not district_id:
+            raise Exception("Either location or district_id must be provided")
+        
         # 核心入参，二选一
-        if not location:
-            params["district_id"] = f"{district_id}"
-        else :
-            params["location"] = f"{location}"
+        if location:
+            params["location"] = location
+        else:
+            params["district_id"] = str(district_id)
  
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
