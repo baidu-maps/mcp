@@ -37,12 +37,12 @@
     - 参数: `uid`POI的唯一标识
     - 输出: POI详情, 包含`name`, `location`, `address`, `brand`, `price`等
   
-5. 批量算路 `map_distance_matrix`
-    - 描述: 根据起点和终点坐标计算路线规划距离和行驶时间，批量算路目前支持驾车、骑行、步行。
+5. 批量算路 `map_directions_matrix`
+    - 描述: 根据起点和终点坐标计算路线规划距离和行驶时间，支持驾车、骑行、步行。步行时任意起终点之间的距离不得超过200KM，驾车批量算路一次最多计算100条路线，起终点个数之积不能超过100。
     - 参数:
-      - `origins` 起点纬经度列表, 格式为`origins=lat,lng`, 多个起点使用`|`分隔
-      - `destinations` 终点纬经度列表, 格式为`destinations=lat,lng`, 多个终点使用`|`分隔
-      - `mode` 算路类型，可选取值包括 `driving`, `walking`, `riding`, 默认使用`driving`
+      - `origins` 起点纬经度列表, 格式为`origins=lat,lng`，多个起点用`|`分隔
+      - `destinations` 终点纬经度列表, 格式为`destinations=lat,lng`，多个终点用`|`分隔
+      - `model` 算路类型，可选取值包括 `driving`, `walking`, `riding`，默认使用`driving`
     - 输出: 每条路线的耗时和距离, 包含`distance`, `duration`等
 
 6. 路线规划 `map_directions`
@@ -54,15 +54,16 @@
     - 输出: 路线详情,包含`steps`, `distance`, `duration`等 
   
 7. 天气查询 `map_weather`
-    - 描述: 通过行政区划或是经纬度坐标查询实时天气信息及未来5天天气预报 (通过`location`经纬度坐标查询天气需用户拥有**高级权限**)
+    - 描述: 通过行政区划或是经纬度坐标查询实时天气信息及未来5天天气预报
     - 参数: 
       - `district_id` 行政区划编码
       - `location` 经纬度坐标, 格式为`location=lng, lat`
     - 输出: 天气信息, 包含`temperature`, `weather`, `wind`等
 
 8. IP定位 `map_ip_location`
-    - 描述: 根据请求的IP获取当前请求的位置 (定位到城市), 如果请求参数ip为IPv6则需要**高级权限**
-    - 参数: 无实际参数, 服务默认以本机IP进行定位
+    - 描述: 通过所给IP获取具体位置信息和城市名称, 可用于定位IP或用户当前位置。可选参数`ip`，如果为空则获取本机IP地址（支持IPv4和IPv6）。
+    - 参数: 
+      - `ip`（可选）需要定位的IP地址
     - 输出: 当前所在城市和城市中点`location`
 
 9.  实时路况查询 `map_road_traffic`
