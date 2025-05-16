@@ -8,6 +8,10 @@
 
 依赖`MCP Python SDK`和`MCP Typescript SDK`开发，任意支持MCP协议的智能体助手（如`Claude`、`Cursor`以及`千帆AppBuilder`等）都可以快速接入。
 
+团队目前主要关注Remote形式的服务供应，对于开源部分的更新会相对较少，请谅解。
+
+*强烈推荐前往官网为你的AK勾选上`MCP(SSE)`服务, 并通过SSE形式接入百度地图MCP Server, 以获得更低的延迟和更高的稳定性。*
+
 ## 工具
 
 1. 地理编码 `map_geocode`
