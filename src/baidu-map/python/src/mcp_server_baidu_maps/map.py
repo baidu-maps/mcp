@@ -4,17 +4,24 @@ import copy
 import httpx
 from asyncio import sleep
  
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP
+import mcp.types as types
+import re
  
 # 创建MCP服务器实例
-mcp = FastMCP("mcp-server-baidu-maps")
-'''
+mcp = FastMCP(
+    name="mcp-server-baidu-maps",
+    version="2.0.0",
+    instructions="This is a MCP server for Baidu Maps."
+)
+
+"""
 
 获取环境变量中的API密钥, 用于调用百度地图API
 环境变量名为: BAIDU_MAPS_API_KEY, 在客户端侧通过配置文件进行设置传入
 获取方式请参考: https://lbsyun.baidu.com/apiconsole/key; 
 
-'''
+"""
 
 api_key = os.getenv('BAIDU_MAPS_API_KEY')
 api_url = "https://api.map.baidu.com"
@@ -22,7 +29,7 @@ api_url = "https://api.map.baidu.com"
  
 def filter_result(data) -> dict:
     """
-    过滤路径规划结果，用于剔除冗余字段信息，保证输出给模型的数据更简洁，避免长距离路径规划场景下chat中断
+    过滤路径规划结果, 用于剔除冗余字段信息, 保证输出给模型的数据更简洁, 避免长距离路径规划场景下chat中断
     """
     
     # 创建输入数据的深拷贝以避免修改原始数据
@@ -39,7 +46,7 @@ def filter_result(data) -> dict:
                 if 'steps' in route:
                     new_steps = []
                     for step in route['steps']:
-                        # 提取'instruction'字段，若不存在则设为空字符串
+                        # 提取'instruction'字段, 若不存在则设为空字符串
                         new_step = {
                             'distance': step.get('distance', ''),
                             'duration': step.get('duration', ''),
@@ -52,35 +59,34 @@ def filter_result(data) -> dict:
     return processed_data
 
 
-@mcp.tool()
-async def map_geocode(
-    address: str,
-    ctx: Context
-) -> dict:
+def is_latlng(text):
     """
-    Name:
-        地理编码服务
-        
-    Description:
-        将地址解析为对应的位置坐标。地址结构越完整，地址内容越准确，解析的坐标精度越高。
-        
-    Args:
-        address: 待解析的地址。最多支持84个字节。可以输入两种样式的值，分别是：
-        1、标准的结构化地址信息，如北京市海淀区上地十街十号【推荐，地址结构越完整，解析精度越高】
-        2、支持“*路与*路交叉口”描述方式，如北一环路和阜阳路的交叉路口
-        第二种方式并不总是有返回结果，只有当地址库中存在该地址描述时才有返回。
-        
+    判断输入是否为经纬度坐标.
+    """
+    
+    # 允许有空格，支持正负号和小数
+    pattern = r'^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$'
+    match = re.match(pattern, text)
+    if not match:
+        return False
+    lat, lng = float(match.group(1)), float(match.group(2))
+    # 简单经纬度范围校验
+    return -90 <= lat <= 90 and -180 <= lng <= 180
+
+
+async def map_geocode(
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    """
+    地理编码服务, 将地址解析为对应的位置坐标.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
+        address = arguments.get("address", "")
+        
         # 调用百度API
         url = f"{api_url}/geocoding/v3/"
         
         # 设置请求参数
-        # 更多参数信息请参考:https://lbsyun.baidu.com/faq/api?title=webapi/guide/webservice-geocoding
         params = {
             "ak": f"{api_key}",
             "output": "json",
@@ -94,45 +100,30 @@ async def map_geocode(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
 
- 
-@mcp.tool()
+
 async def map_reverse_geocode(
-    latitude: float,
-    longitude: float,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        逆地理编码服务
-        
-    Description:
-        根据纬经度坐标, 获取对应位置的地址描述, 所在行政区划, 道路以及相关POI等信息
-        
-    Args:
-        latitude: 纬度 (gcj02ll)
-        longitude: 经度 (gcj02ll)
-        
+    逆地理编码服务, 根据纬经度坐标获取对应位置的地址描述.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("There")
- 
+        latitude = arguments.get("latitude", "")
+        longitude = arguments.get("longitude", "")
+
         # 调用百度API
         url = f"{api_url}/reverse_geocoding/v3/"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbsyun.baidu.com/faq/api?title=webapi/guide/webservice-geocoding-abroad
         params = {
             "ak": f"{api_key}",
             "output": "json",
@@ -140,7 +131,7 @@ async def map_reverse_geocode(
             "location": f"{latitude},{longitude}",
             "extensions_road": "true",
             "extensions_poi": "1",
-            "entire_poi": "1",# 返回周边全量poi信息
+            "entire_poi": "1",
             "from": "py_mcp"
         }
  
@@ -150,53 +141,32 @@ async def map_reverse_geocode(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
 
-@mcp.tool()
+
 async def map_search_places(
-    query: str,
-    tag: str,
-    region: str,
-    location: str,
-    radius: int,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        地点检索服务
-    
-    Description:
-        支持检索城市内的地点信息(最小到city级别), 也可支持圆形区域内的周边地点信息检索
-        城市内检索: 检索某一城市内（目前最细到城市级别）的地点信息。
-        周边检索: 设置圆心和半径，检索圆形区域内的地点信息（常用于周边检索场景）。
-    
-    Args:
-        query: 检索关键字, 可直接使用名称或类型, 如'query=天安门', 且可以至多10个关键字, 用英文逗号隔开
-        tag: 检索分类, 以中文字符输入: 如'tag=美食', 多个分类用英文逗号隔开, 如'tag=美食,购物'
-        region: 检索的行政区划, 可为行政区划名或citycode, 格式为'region=cityname'或'region=citycode' 
-        location: 圆形区域检索的中心点纬经度坐标, 格式为location=lat,lng
-        radius: 圆形区域检索半径，单位：米
-        
+    地点检索服务, 支持检索城市内的地点信息或圆形区域内的周边地点信息.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        query = arguments.get("query", "")
+        tag = arguments.get("tag", "")
+        region = arguments.get("region", "")
+        location = arguments.get("location", "")
+        radius = arguments.get("radius", "")
+        
         url = f"{api_url}/place/v2/search"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbsyun.baidu.com/faq/api?title=webapi/guide/webservice-placeapi
         params = {
             "ak": f"{api_key}",
             "output": "json",
@@ -204,6 +174,7 @@ async def map_search_places(
             "tag": f"{tag}",
             "from": "py_mcp"
         }
+        
         if location:
             params["location"] = f"{location}"
             params["radius"] = f"{radius}"
@@ -216,47 +187,32 @@ async def map_search_places(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
-@mcp.tool()
+
+
 async def map_place_details(
-    uid: str,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        地点详情检索服务
-        
-    Description:
-        地点详情检索: 地点详情检索针对指定POI，检索其相关的详情信息。
-        通地点检索服务获取POI uid。使用“地点详情检索”功能，传入uid，即可检索POI详情信息，如评分、营业时间等（不同类型POI对应不同类别详情数据）。
-        
-    Args:
-        uid: poi的唯一标识
+    地点详情检索服务, 获取指定POI的详情信息.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        uid = arguments.get("uid", "")
+        
         url = f"{api_url}/place/v2/detail"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbsyun.baidu.com/faq/api?title=webapi/guide/webservice-placeapi/detail
         params = {
             "ak": f"{api_key}",
             "output": "json",
             "uid": f"{uid}",
-            # Agent入参不可控，这里给定scope为2
             "scope": 2,
             "from": "py_mcp"
         }
@@ -267,49 +223,30 @@ async def map_place_details(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
-@mcp.tool()
-async def map_distance_matrix(
-    origins: str,
-    destinations: str,
-    mode: str,
-    ctx: Context
-) -> dict:
+
+
+async def map_directions_matrix(
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        批量算路服务
-        
-    Description:
-        根据起点和终点坐标计算路线规划距离和行驶时间
-        批量算路目前支持驾车、骑行、步行
-        步行时任意起终点之间的距离不得超过200KM，超过此限制会返回参数错误
-        驾车批量算路一次最多计算100条路线，起终点个数之积不能超过100
-        
-    Args:
-        origins: 多个起点纬经度坐标，纬度在前，经度在后，多个起点用|分隔。示例：40.056878,116.30815|40.063597,116.364973【骑行】【步行】支持传入起点uid提升绑路准确性，格式为：纬度,经度;POI的uid|纬度,经度;POI的uid。示例：40.056878,116.30815;xxxxx|40.063597,116.364973;xxxxx
-        destinations: 多个终点纬经度坐标，纬度在前，经度在后，多个终点用|分隔。示例：40.056878,116.30815|40.063597,116.364973【【骑行】【步行】支持传入终点uid提升绑路准确性，格式为：纬度,经度;POI的uid|纬度,经度;POI的uid。示例：40.056878,116.30815;xxxxx|40.063597,116.364973;xxxxx
-        mode: 批量算路类型(driving, riding, walking)
-        
+    批量算路服务, 根据起点和终点坐标计算路线规划距离和行驶时间.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
-        url = f"{api_url}/routematrix/v2/{mode}"
+        origins = arguments.get("origins", "")
+        destinations = arguments.get("destinations", "")
+        model = arguments.get("model", "driving")
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbsyun.baidu.com/faq/api?title=webapi/routchtout
+        url = f"{api_url}/routematrix/v2/{model}"
+        
         params = {
             "ak": f"{api_key}",
             "output": "json",
@@ -324,54 +261,81 @@ async def map_distance_matrix(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
-@mcp.tool()
+
+
 async def map_directions(
-    model: str,
-    origin: str,
-    destination: str,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        路线规划服务
-        
-    Description:
-        驾车路线规划: 根据起终点`纬经度坐标`规划驾车出行路线
-        骑行路线规划: 根据起终点`纬经度坐标`规划骑行出行路线
-        步行路线规划: 根据起终点`纬经度坐标`规划步行出行路线
-        公交路线规划: 根据起终点`纬经度坐标`规划公共交通出行路线
-        
-    Args:
-        model: 路线规划类型(driving, riding, walking, transit)
-        origin: 起点纬经度坐标，纬度在前，经度在后，当用户只有起点名称时，需要先通过地理编码服务或地点地点检索服务确定起点的坐标
-        destination: 终点纬经度坐标，纬度在前，经度在后，当用户只有起点名称时，需要先通过地理编码服务或地点检索服务确定起点的坐标
- 
+    路线规划服务, 支持驾车、骑行、步行和公交路线规划.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        model = arguments.get("model", "driving")
+        origin = arguments.get("origin", "")
+        destination = arguments.get("destination", "")
+        
+        # 检查输入是否为地址文本（不包含逗号）
+        if not is_latlng(origin):
+            # 调用地理编码服务获取起点经纬度
+            geocode_url = f"{api_url}/geocoding/v3/"
+            geocode_params = {
+                "ak": f"{api_key}",
+                "output": "json",
+                "address": origin,
+                "from": "py_mcp"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                geocode_response = await client.get(geocode_url, params=geocode_params)
+                geocode_response.raise_for_status()
+                geocode_result = geocode_response.json()
+                
+                if geocode_result.get("status") != 0:
+                    error_msg = geocode_result.get("message", "input `origin` invaild, please reinput more detail address")
+                    raise Exception(f"Geocoding API error: {error_msg}")
+                
+                location = geocode_result.get("result", {}).get("location", {})
+                origin = f"{location.get('lat')},{location.get('lng')}"
+        
+        if not is_latlng(destination):
+            # 调用地理编码服务获取终点经纬度
+            geocode_url = f"{api_url}/geocoding/v3/"
+            geocode_params = {
+                "ak": f"{api_key}",
+                "output": "json",
+                "address": destination,
+                "from": "py_mcp"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                geocode_response = await client.get(geocode_url, params=geocode_params)
+                geocode_response.raise_for_status()
+                geocode_result = geocode_response.json()
+                
+                if geocode_result.get("status") != 0:
+                    error_msg = geocode_result.get("message", "input `destination` invaild, please reinput more detail address")
+                    raise Exception(f"Geocoding API error: {error_msg}")
+                
+                location = geocode_result.get("result", {}).get("location", {})
+                destination = f"{location.get('lat')},{location.get('lng')}"
+        
+        # 调用路线规划服务
         url = f"{api_url}/directionlite/v1/{model}"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbs.baidu.com/faq/api?title=webapi/direction-api-v2
         params = {
             "ak": f"{api_key}",
             "output": "json",
-            "origin": f"{origin}",
-            "destination": f"{destination}",
+            "origin": origin,
+            "destination": destination,
             "from": "py_mcp"
         }
  
@@ -381,63 +345,41 @@ async def map_directions(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        '''
-        过滤非公交的导航结果，防止返回的结果中包含大量冗余坐标信息，影响大模型的响应速度，或是导致chat崩溃。
-        当前只保留导航结果每一步的距离、耗时和语义化信息。
-        公交路线规划情况比较多，尽量全部保留。
-            
-        '''
         if model == 'transit':
-            return result
+            return [types.TextContent(type="text", text=response.text)]
         else:
-            return filter_result(result)
+            return [types.TextContent(type="text", text=str(filter_result(result)))]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
-        raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
- 
-@mcp.tool()
+        raise Exception(f"Failed to parse response: {str(e)}") from e
+
+
 async def map_weather(
-    location: str,
-    district_id: int,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        天气查询服务
-        
-    Description:
-        用户可通过行政区划或是经纬度坐标查询实时天气信息及未来5天天气预报(注意: 使用经纬度坐标需要高级权限)。
-        
-    Args:
-        location: 经纬度，经度在前纬度在后，逗号分隔 (需要高级权限, 例如: 116.30815,40.056878)
-        district_id: 行政区划代码, 需保证为6位无符号整数 (例如: 1101010)
+    天气查询服务, 查询实时天气信息及未来5天天气预报.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        location = arguments.get("location", "")
+        district_id = arguments.get("district_id", "")
+        
         url = f"{api_url}/weather/v1/?"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbs.baidu.com/faq/api?title=webapi/weather
         params = {
             "ak": f"{api_key}",
             "data_type": "all",
             "from": "py_mcp"
         }
         
-        # 核心入参，二选一
         if not location:
             params["district_id"] = f"{district_id}"
-        else :
+        else:
             params["location"] = f"{location}"
  
         async with httpx.AsyncClient() as client:
@@ -446,44 +388,32 @@ async def map_weather(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
- 
- 
-@mcp.tool()
+
+
 async def map_ip_location(
-    # ip: str,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        IP定位服务
-        
-    Description:
-        根据用户请求的IP获取当前的位置，当需要知道用户当前位置、所在城市时可以调用该工具获取
-        
-    Args:
+    IP定位服务, 通过所给IP获取具体位置信息和城市名称, 可用于定位IP或用户当前位置.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        ip = arguments.get("ip", "")
+        
         url = f"{api_url}/location/ip"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbs.baidu.com/faq/api?title=webapi/ip-api
         params = {
             "ak": f"{api_key}",
-            "from": "py_mcp"
+            "from": "py_mcp",
+            "ip": ip
         }
  
         async with httpx.AsyncClient() as client:
@@ -492,121 +422,79 @@ async def map_ip_location(
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
-    
 
-@mcp.tool()
+
 async def map_road_traffic(
-    model: str,
-    road_name: str,
-    city: str,
-    bounds: str,
-    vertexes: str,
-    center: str,
-    radius: int,
-    ctx: Context
-) -> dict:
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        实时路况查询服务
-        
-    Description:
-        查询实时交通拥堵情况, 可通过指定道路名和区域形状(矩形, 多边形, 圆形)进行实时路况查询。
-        
-        道路实时路况查询: 查询具体道路的实时拥堵评价和拥堵路段、拥堵距离、拥堵趋势等信息
-        矩形区域实时路况查询: 查询指定矩形地理范围的实时拥堵情况和各拥堵路段信息
-        多边形区域实时路况查询: 查询指定多边形地理范围的实时拥堵情况和各拥堵路段信息
-        圆形区域(周边)实时路况查询: 查询某中心点周边半径范围内的实时拥堵情况和各拥堵路段信息
-
-        
-    Args:
-        model:      路况查询类型(road, bound, polygon, around)
-        road_name:  道路名称和道路方向, model=road时必传 (如:朝阳路南向北)
-        city:       城市名称或城市adcode, model=road时必传 (如:北京市)
-        bounds:     区域左下角和右上角的纬经度坐标,纬度在前,经度在后, model=bound时必传 (如:39.912078,116.464303;39.918276,116.475442)
-        vertexes:   多边形区域的顶点纬经度坐标,纬度在前,经度在后, model=polygon时必传 (如:39.910528,116.472926;39.918276,116.475442;39.916671,116.459056;39.912078,116.464303)
-        center:     圆形区域的中心点纬经度坐标,纬度在前,经度在后, model=around时必传 (如:39.912078,116.464303)
-        radius:     圆形区域的半径(米), 取值[1,1000], model=around时必传 (如:200)
- 
+    实时路况查询服务, 查询实时交通拥堵情况.
     """
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
- 
-        # 调用百度API
+        model = arguments.get("model", "")
+        road_name = arguments.get("road_name", "")
+        city = arguments.get("city", "")
+        bounds = arguments.get("bounds", "")
+        vertexes = arguments.get("vertexes", "")
+        center = arguments.get("center", "")
+        radius = arguments.get("radius", "")
+        
         url = f"{api_url}/traffic/v1/{model}?"
         
-        # 设置请求参数
-        # 更多参数信息请参考:https://lbs.baidu.com/faq/api?title=webapi/traffic
         params = {
             "ak": f"{api_key}",
             "output": "json",
             "from": "py_mcp"
         }
         
-        # 核心入参，根据model选择
-        match model:
-            case 'bound': 
-                params['bounds'] = f'{bounds}'
-            case 'polygon': 
-                params['vertexes'] = f'{vertexes}'
-            case 'around': 
-                params['center'] = f'{center}'
-                params['radius'] = f'{radius}'
-            case 'road':
-                params['road_name'] = f'{road_name}'
-                params['city'] = f'{city}'
-            case _:             
-                pass
-        
+        if model == 'bound':
+            params['bounds'] = f'{bounds}'
+        elif model == 'polygon':
+            params['vertexes'] = f'{vertexes}'
+        elif model == 'around':
+            params['center'] = f'{center}'
+            params['radius'] = f'{radius}'
+        elif model == 'road':
+            params['road_name'] = f'{road_name}'
+            params['city'] = f'{city}'
+ 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             result = response.json()
  
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        return result
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
-    
-    
-@mcp.tool()
+
+
 async def map_poi_extract(
-    text_content: str,
-    ctx: Context
-) -> dict:
+    name: str,
+    arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     """
-    Name:
-        POI智能提取
-        
-    Description:
-        根据用户提供的文本描述信息, 智能提取出文本中所提及的POI相关信息. (注意: 使用该服务, api_key需要拥有对应的高级权限, 否则会报错)
-        
-    Args:
-        text_content: 用于提取POI的文本描述信息 (完整的旅游路线，行程规划，景点推荐描述等文本内容, 例如: 新疆独库公路和塔里木湖太美了, 从独山子大峡谷到天山神秘大峡谷也是很不错的体验)
+    POI智能提取
     """
-    
     # 关于高级权限使用的相关问题，请联系我们: https://lbsyun.baidu.com/apiconsole/fankui?typeOne=%E4%BA%A7%E5%93%81%E9%9C%80%E6%B1%82&typeTwo=%E9%AB%98%E7%BA%A7%E6%9C%8D%E5%8A%A1
     
     try:
-        # 获取API密钥
-        if not api_key:
-            raise Exception("Can not found API key.")
+        text_content = arguments.get("text_content", "")
  
         # 调用POI智能提取的提交接口
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
@@ -632,7 +520,7 @@ async def map_poi_extract(
             submit_result = submit_resp.json()
 
             if submit_result.get("status") != 0:
-                error_msg = submit_result.get("message", "unkown error")
+                error_msg = submit_result.get("message", "unknown error")
                 raise Exception(f"API response error: {error_msg}")
             
 
@@ -659,13 +547,296 @@ async def map_poi_extract(
                 raise Exception("Timeout to get the result")
                 
         if result.get("status") != 0:
-            error_msg = result.get("message", "unkown error")
+            error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
 
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
     except KeyError as e:
         raise Exception(f"Failed to parse reponse: {str(e)}") from e
+    
+
+async def list_tools() -> list[types.Tool]:
+    """
+    列出所有可用的工具。
+    
+    Args:
+        None.
+    
+    Returns:
+        list (types.Tool): 包含了所有可用的工具, 每个工具都包含了名称、描述、输入schema三个属性.
+    """
+    return [
+        types.Tool(
+            name="map_geocode",
+            description="地理编码服务: 将地址解析为对应的位置坐标.地址结构越完整, 地址内容越准确, 解析的坐标精度越高.",
+            inputSchema={
+                "type": "object",
+                "required": ["address"],
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "待解析的地址.最多支持84个字节.可以输入两种样式的值, 分别是：\n1、标准的结构化地址信息, 如北京市海淀区上地十街十号\n2、支持*路与*路交叉口描述方式, 如北一环路和阜阳路的交叉路口\n第二种方式并不总是有返回结果, 只有当地址库中存在该地址描述时才有返回",
+                    }
+                },
+            }
+        ),
+        types.Tool(
+            name="map_reverse_geocode",
+            description="逆地理编码服务: 根据纬经度坐标, 获取对应位置的地址描述, 所在行政区划, 道路以及相关POI等信息",
+            inputSchema={
+                "type": "object",
+                "required": ["latitude", "longitude"],
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "description": "纬度 (gcj02ll)",
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "description": "经度 (gcj02ll)",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_search_places",
+            description="地点检索服务: 支持检索城市内的地点信息(最小到city级别), 也可支持圆形区域内的周边地点信息检索."
+                        "\n城市内检索: 检索某一城市内（目前最细到城市级别）的地点信息."
+                        "\n周边检索: 设置圆心和半径, 检索圆形区域内的地点信息（常用于周边检索场景）.",
+            inputSchema={
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "检索关键字, 可直接使用名称或类型, 如'天安门', 且可以至多10个关键字, 用英文逗号隔开",
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "检索分类, 以中文字符输入, 如'美食', 多个分类用英文逗号隔开, 如'美食,购物'",
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "检索的行政区划, 可为行政区划名或citycode, 格式为'cityname'或'citycode'",
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "圆形区域检索的中心点纬经度坐标, 格式为lat,lng",
+                    },
+                    "radius": {
+                        "type": "integer",
+                        "description": "圆形区域检索半径, 单位：米",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_place_details",
+            description="地点详情检索服务: 地点详情检索针对指定POI, 检索其相关的详情信息."
+                        "\n通过地点检索服务获取POI uid.使用地点详情检索功能, 传入uid, 即可检索POI详情信息, 如评分、营业时间等(不同类型POI对应不同类别详情数据).",
+            inputSchema={
+                "type": "object",
+                "required": ["uid"],
+                "properties": {
+                    "uid": {
+                        "type": "string",
+                        "description": "POI的唯一标识",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_directions_matrix",
+            description="批量算路服务: 根据起点和终点坐标计算路线规划距离和行驶时间."
+                        "\n批量算路目前支持驾车、骑行、步行."
+                        "\n步行时任意起终点之间的距离不得超过200KM, 超过此限制会返回参数错误."
+                        "\n驾车批量算路一次最多计算100条路线, 起终点个数之积不能超过100.",
+            inputSchema={
+                "type": "object",
+                "required": ["origins", "destinations"],
+                "properties": {
+                    "origins": {
+                        "type": "string",
+                        "description": "多个起点纬经度坐标, 纬度在前, 经度在后, 多个起点用|分隔",
+                    },
+                    "destinations": {
+                        "type": "string",
+                        "description": "多个终点纬经度坐标, 纬度在前, 经度在后, 多个终点用|分隔",
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "批量算路类型(driving, riding, walking)",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_directions",
+            description="路线规划服务: 根据起终点`位置名称`或`纬经度坐标`规划出行路线."
+                        "\n驾车路线规划: 根据起终点`位置名称`或`纬经度坐标`规划驾车出行路线."
+                        "\n骑行路线规划: 根据起终点`位置名称`或`纬经度坐标`规划骑行出行路线."
+                        "\n步行路线规划: 根据起终点`位置名称`或`纬经度坐标`规划步行出行路线."
+                        "\n公交路线规划: 根据起终点`位置名称`或`纬经度坐标`规划公共交通出行路线.",
+            inputSchema={
+                "type": "object",
+                "required": ["origin", "destination"],
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "路线规划类型(driving, riding, walking, transit)",
+                    },
+                    "origin": {
+                        "type": "string",
+                        "description": "起点位置名称或纬经度坐标, 纬度在前, 经度在后",
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "终点位置名称或纬经度坐标, 纬度在前, 经度在后",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_weather",
+            description="天气查询服务: 通过行政区划或是经纬度坐标查询实时天气信息及未来5天天气预报.",
+            inputSchema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "经纬度坐标, 经度在前纬度在后, 逗号分隔",
+                    },
+                    "district_id": {
+                        "type": "integer",
+                        "description": "行政区划代码, 需保证为6位无符号整数",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_ip_location",
+            description="IP定位服务: 通过所给IP获取具体位置信息和城市名称, 可用于定位IP或用户当前位置.",
+            inputSchema={
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "ip": {
+                        "type": "string",
+                        "description": "需要定位的IP地址, 如果为空则获取用户当前IP地址(支持IPv4和IPv6)",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_road_traffic",
+            description="实时路况查询服务: 查询实时交通拥堵情况, 可通过指定道路名和区域形状(矩形, 多边形, 圆形)进行实时路况查询."
+                        "\n道路实时路况查询: 查询具体道路的实时拥堵评价和拥堵路段、拥堵距离、拥堵趋势等信息."
+                        "\n矩形区域实时路况查询: 查询指定矩形地理范围的实时拥堵情况和各拥堵路段信息."
+                        "\n多边形区域实时路况查询: 查询指定多边形地理范围的实时拥堵情况和各拥堵路段信息."
+                        "\n圆形区域(周边)实时路况查询: 查询某中心点周边半径范围内的实时拥堵情况和各拥堵路段信息.",
+            inputSchema={
+                "type": "object",
+                "required": ["model"],
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "路况查询类型(road, bound, polygon, around)",
+                    },
+                    "road_name": {
+                        "type": "string",
+                        "description": "道路名称和道路方向, model=road时必传 (如:朝阳路南向北)",
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "城市名称或城市adcode, model=road时必传 (如:北京市)",
+                    },
+                    "bounds": {
+                        "type": "string",
+                        "description": "区域左下角和右上角的纬经度坐标, 纬度在前, 经度在后, model=bound时必传",
+                    },
+                    "vertexes": {
+                        "type": "string",
+                        "description": "多边形区域的顶点纬经度坐标, 纬度在前, 经度在后, model=polygon时必传",
+                    },
+                    "center": {
+                        "type": "string",
+                        "description": "圆形区域的中心点纬经度坐标, 纬度在前, 经度在后, model=around时必传",
+                    },
+                    "radius": {
+                        "type": "integer",
+                        "description": "圆形区域的半径(米), 取值[1,1000], model=around时必传",
+                    },
+                },
+            }
+        ),
+        types.Tool(
+            name="map_poi_extract",
+            description="POI智能提取",
+            inputSchema={
+                "type": "object",
+                "required": ["text_content"],
+                "properties": {
+                    "text_content": {
+                        "type": "string",
+                        "description": "根据用户提供的文本描述信息, 智能提取出文本中所提及的POI相关信息. (注意: 使用该服务, api_key需要拥有对应的高级权限, 否则会报错)",
+                    },
+                },
+            }
+        )
+    ]
+
+
+async def dispatch(
+    name: str, arguments: dict
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    """
+    根据名称调度对应的工具函数, 并返回处理结果.
+    
+    Args:
+        name (str): 工具函数的名称, 可选值为: "map_geocode", "map_reverse_geocode",
+            "map_search_places", "map_place_details", "map_distance_matrix",
+            "map_directions", "map_weather", "map_ip_location", "map_road_traffic",
+            "map_mark".
+        arguments (dict): 传递给工具函数的参数字典, 包括必要和可选参数.
+    
+    Returns:
+        list[types.TextContent | types.ImageContent | types.EmbeddedResource]: 返回一个列表, 包含文本内容、图片内容或嵌入资源类型的元素.
+    
+    Raises:
+        ValueError: 如果提供了未知的工具名称.
+    """
+    
+    match name:
+        case "map_geocode":
+            return await map_geocode(name, arguments)
+        case "map_reverse_geocode":
+            return await map_reverse_geocode(name, arguments)
+        case "map_search_places":
+            return await map_search_places(name, arguments)
+        case "map_place_details":
+            return await map_place_details(name, arguments)
+        case "map_directions_matrix":
+            return await map_directions_matrix(name, arguments)
+        case "map_directions":
+            return await map_directions(name, arguments)
+        case "map_weather":
+            return await map_weather(name, arguments)
+        case "map_ip_location":
+            return await map_ip_location(name, arguments)
+        case "map_road_traffic":
+            return await map_road_traffic(name, arguments)
+        case "map_poi_extract":
+            return await map_poi_extract(name, arguments)
+        case _:
+            raise ValueError(f"Unknown tool: {name}")
+
+
+# 注册list_tools方法
+mcp._mcp_server.list_tools()(list_tools)
+# 注册dispatch方法
+mcp._mcp_server.call_tool()(dispatch)
  
 if __name__ == "__main__":
     mcp.run()
