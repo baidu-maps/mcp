@@ -10,7 +10,7 @@
 
 团队目前主要关注Remote形式的服务供应，对于开源部分的更新会相对较少，请谅解。
 
-**强烈推荐前往官网为你的AK勾选上`MCP(SSE)`服务, 通过[SSE](https://lbsyun.baidu.com/faq/api?title=mcpserver/quickstart)接入百度地图MCP Server, 以获得更低的延迟和更高的稳定性。**
+**强烈推荐前往[控制台](https://lbsyun.baidu.com/apiconsole/key)为你的AK勾选上`MCP(SSE)`服务, 通过[SSE](https://lbsyun.baidu.com/faq/api?title=mcpserver/quickstart)接入百度地图MCP Server, 以获得更低的延迟和更高的稳定性。**
 
 ## 工具
 
