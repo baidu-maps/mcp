@@ -8,8 +8,6 @@
 
 依赖`MCP Python SDK`和`MCP Typescript SDK`开发，任意支持MCP协议的智能体助手（如`Claude`、`Cursor`以及`千帆AppBuilder`等）都可以快速接入。
 
-团队目前主要关注Remote形式的服务供应，对于开源部分的更新会相对较少，请谅解。
-
 **强烈推荐通过[SSE](https://lbsyun.baidu.com/faq/api?title=mcpserver/quickstart)接入百度地图MCP Server, 以获得更低的延迟和更高的稳定性。请不要忘记在[控制台](https://lbsyun.baidu.com/apiconsole/key)为你的AK勾选上`MCP(SSE)`服务。**
 
 ## 工具
@@ -50,10 +48,10 @@
     - 输出: 每条路线的耗时和距离, 包含`distance`, `duration`等
 
 6. 路线规划 `map_directions`
-    - 描述: 根据起终点坐标规划出行路线和耗时, 可指定驾车、步行、骑行、公交等出行方式
+    - 描述: 根据起终点位置名称或经纬度坐标规划出行路线和耗时, 可指定驾车、步行、骑行、公交等出行方式
     - 参数: 
-      - `origin` 起点纬经度, 格式为`origin=lat,lng`
-      - `destination` 终点纬经度, 格式为`destination=lat,lng`
+      - `origin` 起点位置名称或纬经度, 格式为`origin=lat,lng`
+      - `destination` 终点位置名称或纬经度, 格式为`destination=lat,lng`
       - `model` 出行类型, 可选取值包括 `driving`, `walking`, `riding`, `transit`, 默认使用`driving`
     - 输出: 路线详情,包含`steps`, `distance`, `duration`等 
   
@@ -373,7 +371,11 @@ if __name__ == "__main__":
 
 ## 更新
 
+团队目前主要关注Remote形式的服务供应，对于开源部分的更新会相对较少，请谅解。
+
 | 版本 | 功能说明                       | 更新日期      |
 | ---- | ------------------------------ | ------------- |
 | V1.0 | 百度地图MCP Server正式上线     | 2025-03-21 |
 | V1.1 | 补充`uvx`、`pip`形式的快速接入 | 2025-03-28 |
+| V1.2 | 补充`千帆AppBuilder`接入方式  | 2025-04-05 |
+| V2.0 | 支持MCP`1.9.0`版协议         | 2025-05-16 |
