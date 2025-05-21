@@ -161,7 +161,7 @@ async def map_search_places(
     try:
         query = arguments.get("query", "")
         tag = arguments.get("tag", "")
-        region = arguments.get("region", "")
+        region = arguments.get("region", "全国") # 默认检索全国，防止出错
         location = arguments.get("location", "")
         radius = arguments.get("radius", "")
         
@@ -618,7 +618,7 @@ async def list_tools() -> list[types.Tool]:
                     },
                     "region": {
                         "type": "string",
-                        "description": "检索的行政区划, 可为行政区划名或citycode, 格式为'cityname'或'citycode'",
+                        "description": "检索的城市名称, 可为行政区划名或citycode, 格式如'北京市'或'131', 不传默认为'全国'",
                     },
                     "location": {
                         "type": "string",
