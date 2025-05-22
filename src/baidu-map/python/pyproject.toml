@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-baidu-maps"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP Server Baidu Maps"
 readme = "README.md"
 requires-python = ">=3.11"
