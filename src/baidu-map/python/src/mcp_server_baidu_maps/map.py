@@ -127,7 +127,6 @@ async def map_reverse_geocode(
         params = {
             "ak": f"{api_key}",
             "output": "json",
-            "coordtype": "gcj02ll",
             "location": f"{latitude},{longitude}",
             "extensions_road": "true",
             "extensions_poi": "1",
@@ -172,6 +171,8 @@ async def map_search_places(
             "output": "json",
             "query": f"{query}",
             "tag": f"{tag}",
+            "photo_show": "true",
+            "scope": 2,
             "from": "py_mcp"
         }
         
@@ -348,10 +349,11 @@ async def map_directions(
             error_msg = result.get("message", "unknown error")
             raise Exception(f"API response error: {error_msg}")
  
-        if model == 'transit':
-            return [types.TextContent(type="text", text=response.text)]
-        else:
-            return [types.TextContent(type="text", text=str(filter_result(result)))]
+        # if model == 'transit':
+        #     return [types.TextContent(type="text", text=response.text)]
+        # else:
+        #     return [types.TextContent(type="text", text=str(filter_result(result)))]
+        return [types.TextContent(type="text", text=response.text)]
  
     except httpx.HTTPError as e:
         raise Exception(f"HTTP request failed: {str(e)}") from e
@@ -590,11 +592,11 @@ async def list_tools() -> list[types.Tool]:
                 "properties": {
                     "latitude": {
                         "type": "number",
-                        "description": "纬度 (gcj02ll)",
+                        "description": "纬度 (bd09ll)",
                     },
                     "longitude": {
                         "type": "number",
-                        "description": "经度 (gcj02ll)",
+                        "description": "经度 (bd09ll)",
                     },
                 },
             }

@@ -352,7 +352,7 @@ if __name__ == "__main__":
 
 行政区划编码均采用[百度adcode映射表](https://lbsyun.baidu.com/faq/api?title=webapi/download)。
 
-经纬度坐标均采用国测局经纬度坐标`gcj02ll`，详见[百度坐标系](https://lbsyun.baidu.com/index.php?title=coordinate)。
+经纬度坐标均采用国测局经纬度坐标`bd09ll`，详见[百度坐标系](https://lbsyun.baidu.com/index.php?title=coordinate)。
 
 类型等中文字符串参数应符合[百度POI类型](https://lbs.baidu.com/index.php?title=open/poitags)标准。
 
