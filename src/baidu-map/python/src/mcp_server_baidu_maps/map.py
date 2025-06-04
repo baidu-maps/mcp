@@ -711,7 +711,7 @@ async def list_tools() -> list[types.Tool]:
                         "description": "经纬度坐标, 经度在前纬度在后, 逗号分隔",
                     },
                     "district_id": {
-                        "type": "integer",
+                        "type": "string",
                         "description": "行政区划代码, 需保证为6位无符号整数",
                     },
                 },
