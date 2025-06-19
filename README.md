@@ -42,11 +42,6 @@ The MCP Server architecture enables:
 
 Whether you're building a navigation app, delivery service, smart city solution, or enhancing an AI agent with location awareness, Baidu Map MCP Server provides the tools and infrastructure you need to succeed.
 
-<div align="center">
-  <p>
-      <img width="100%" src="./docs/images/Arch.png" alt="Baidu Map MCP Server Architecture"></a>
-  </p>
-</div>
 
 ## 🛠️ Supported Tools & APIs
 
