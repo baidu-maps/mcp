@@ -163,30 +163,40 @@ async def map_search_places(
         region = arguments.get("region", "全国") # 默认检索全国，防止出错
         location = arguments.get("location", "")
         radius = arguments.get("radius", "")
+        language = arguments.get("language", "")
         is_china = arguments.get("is_china", "true")
         
-        if is_china == "true":
-            url = f"{api_url}/place/v2/search"
-        elif is_china == "false":
-            url = f"{api_url}/place_abroad/v1/search"
-        else:
-            raise Exception("input `is_china` invaild, please reinput `is_china` with `true` or `false`")
-        
+        url = ""
         params = {
             "ak": f"{api_key}",
             "output": "json",
             "query": f"{query}",
-            "tag": f"{tag}",
+            "type": f"{tag}",
             "photo_show": "true",
+            "region_limit": "true",
             "scope": 2,
-            "from": "py_mcp"
+            "from": "py_mcp",
+            "language": f"{language}"
         }
         
-        if location:
-            params["location"] = f"{location}"
-            params["radius"] = f"{radius}"
+        if is_china == "true":
+            if location:
+                url = f"{api_url}/place/v3/around"
+                params["location"] = f"{location}"
+                params["radius"] = f"{radius}"
+            else:
+                url = f"{api_url}/place/v3/region"
+                params["region"] = f"{region}"
+        elif is_china == "false":
+            url = f"{api_url}/place_abroad/v1/search"
+            if location:
+                params["location"] = f"{location}"
+                params["radius"] = f"{radius}"
+            else:
+                params["region"] = f"{region}"
         else:
-            params["region"] = f"{region}"
+            raise Exception("input `is_china` invaild, please reinput `is_china` with `true` or `false`")
+
  
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
@@ -626,7 +636,7 @@ async def list_tools() -> list[types.Tool]:
                     },
                     "region": {
                         "type": "string",
-                        "description": "检索的城市名称, 可为行政区划名或citycode, 格式如'北京市'或'东京'或'131', 不传默认为'全国'",
+                        "description": "检索的城市名称, 可为行政区划名或citycode, 格式如'北京市'或'131', 不传默认为'全国', 当is_china为false时, 该参数必传且只能传文本, 如'东京'",
                     },
                     "location": {
                         "type": "string",
