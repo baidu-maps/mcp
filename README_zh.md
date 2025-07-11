@@ -32,6 +32,7 @@
       - `region` 检索的行政区划, 格式为`region=cityname`或`region=citycode`
       - `location` 圆形检索中心点纬经度坐标, 格式为`location=lat,lng`
       - `radius` 圆形检索的半径
+      - `is_china` 检索地是否在中国大陆以外地区，默认为`is_china=true`
     - 输出: POI列表, 包含`name`, `location`, `address`等
 
 4. 地点详情检索 `map_place_details`
@@ -87,27 +88,41 @@
 
 
 ## 开始
+任意支持MCP协议的客户端（如Claude for Desktop、Cursor、Cherry Studio 和 Cline等）都可以简单且快速的接入百度地图MCP Server。
 
-使用百度地图MCP Server主要通过两种形式，分别是`Python`和`Typescript`，下面分别介绍。
+在传输方式上，百度地图MCP Server支持：
+* HTTP 远程传输
+    * [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) (推荐使用)
+    * [Server-Sent Events](https://en.wikipedia.org/wiki/Server-sent_events)（SSE）
+
+* [stdio](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#stdio) 本地传输
+    * [python](https://pypi.org/project/mcp-server-baidu-maps/)（pip、uvx）
+    * [nodejs](https://www.npmjs.com/package/@baidumap/mcp-server-baidu-map)（npm、npx）
+
+下面提供通用的接入配置，客户端接入的配置示例则在最后采用Cursor作为接入演示。请根据您客户端的兼容性选择合适的传输方式进行接入。
+
 
 ### 获取AK
+*P.S. Streamable HTTP是Anthropic当前在MCP协议中主推用于替代传统SSE的传输方式，相比于SSE它支持无状态通信，甚至支持按需升级到 SSE，更稳定、更高效的通信也使得它更加适配企业级应用。因此，如果您选择了HTTP远程接入，在条件允许的情况下我们极力推荐以Streamable HTTP作为接入首选。*
 
-在选择两种方法之前，你需要在[百度地图开放平台](https://lbsyun.baidu.com/apiconsole/key)的控制台中创建一个服务端AK，通过AK你才能够调用百度地图API能力。
+在[百度地图开放平台](https://lbsyun.baidu.com/apiconsole/key)注册并创建服务器端API密钥（AK）。
 
+### HTTP 远程传输接入
 
-### Python接入
+#### Streamable HTTP 地址 **(推荐)**
+```shell
+https://mcp.map.baidu.com/mcp?ak=您的AK
+```
 
-如果你希望自定义百度地图MCP Server的能力，可以通过[源码](./src/baidu-map/python/src/mcp_server_baidu_maps/map.py)接入，方式详见[Python接入文档](./src/baidu-map/python/README.md)。
+#### SSE 地址
+```shell
+https://mcp.map.baidu.com/sse?ak=您的AK
+```
 
-在v1.1版本更新中，我们通过pypi发布了百度地图MCP Server：*mcp-server-baidu-maps*，你可以使用任意Python包管理工具轻松获取并快速配置使用。
+### stdio 本地传输接入
 
-#### 安装
-
-##### 使用uv（推荐）
-使用[`uv`](https://docs.astral.sh/uv/)时不需要特殊安装，我们将使用[`uvx`](https://docs.astral.sh/uv/guides/tools/)直接运行*mcp-server-baidu-maps*
-
-##### 使用pip
-或者你可以通过pip来安装*mcp-server-baidu-maps*
+#### python（pip、uvx）
+可以通过pip来安装*mcp-server-baidu-maps*
 ```bash
 pip install mcp-server-baidu-maps
 ```
@@ -117,8 +132,7 @@ pip install mcp-server-baidu-maps
 python -m mcp_server_baidu_maps
 ```
 
-#### 配置
-在任意MCP客户端（如Claude.app）中添加如下配置，部分客户端下可能需要做一些格式化调整。
+也可以在你的客户端中配置（如Claude for Desktop、Cursor），部分客户端下可能需要做一些格式化调整。
 
 其中*BAIDU_MAPS_API_KEY*对应的值需要替换为你自己的AK。
 
@@ -160,9 +174,7 @@ python -m mcp_server_baidu_maps
 
 保存配置后，重启你的MCP客户端，即可使用百度地图MCP Server。
 
-### Typescript接入
-
-#### nodejs安装
+#### nodejs（npm、npx）
 通过Typescript接入，你只需要安装[node.js](https://nodejs.org/en/download)。
 
 当你在终端可以运行
@@ -173,18 +185,18 @@ node -v
 
 则说明你的`node.js`已经安装成功。
 
-#### 配置
-打开`Claude for Desktop`的`Setting`，切换到`Developer`，点击`Edit Config`，用任意的IDE打开配置文件。
 
-![](./img/claude_setting.png)
+安装：
+```bash
+npm install @baidumap/mcp-server-baidu-map
+```
 
-
-
-![](./img/claude_setting_developer.png)
-
-
+在你的客户端中配置（如Claude for Desktop、Cursor）：
 
 将以下配置添加到配置文件中，BAIDU_MAP_API_KEY 是访问百度地图开放平台API的AK，在[此页面](https://lbs.baidu.com/faq/search?id=299&title=677)中申请获取：
+
+<details>
+<summary>Using npx (Unix)</summary>
 
 ```json
 {
@@ -196,13 +208,19 @@ node -v
                 "@baidumap/mcp-server-baidu-map"
             ],
             "env": {
-                "BAIDU_MAP_API_KEY": "xxx"
+                "BAIDU_MAP_API_KEY": "<BAIDU_MAP_API_KEY>"
             }
         }
     }
 }
 ```
+</details>
+
+
 如果是window 系统, json 需要添加单独的配置：
+<details>
+<summary>Using npx (Windows)</summary>
+
 ```json
 "mcpServers": {
  "baidu-map": {
@@ -214,22 +232,46 @@ node -v
         "@baidumap/mcp-server-baidu-map"
       ],
       "env": {
-        "BAIDU_MAP_API_KEY": "xxx"
+        "BAIDU_MAP_API_KEY": "<BAIDU_MAP_API_KEY>"
       },
     }
 }
 ```
-重启Claude，此时设置面板已经成功加载了百度地图MCP Server。在软件主界面对话框处可以看到有8个可用的MCP工具，点击可以查看详情。
+</details>
 
-![](./img/claude_setting_result.png)
+### Cursor 平台远程接入百度地图MCP Server
 
-![](./img/claude_result.png)
+对于StreamableHTTP接入，需在配置文件中添加
+<details>
+<summary>Using StreamableHTTP</summary>
 
-#### 效果
+```json
+{
+  "mcpServers": {
+    "baidu-maps-StreamableHTTP": {
+      "url": "https://mcp.map.baidu.com/sse?ak=您的ak"
+    }
+  }
+}
+```
+</details>
 
-接下来就可以进行提问，验证出行规划小助手的能力了。
-![](./img/claude_final_result.png)
+如果选择的传输方式为SSE，则配置为
+<details>
+<summary>Using SSE</summary>
 
+```json
+{
+  "mcpServers": {
+    "baidu-maps-SSE": {
+      "url": "https://mcp.map.baidu.com/sse?ak=您的ak"
+    }
+  }
+}
+```
+</details>
+
+如果在使用过程中遇到工具调用效果较差的情况，可以更换基础模型。当前评估适配MCP效果较好的为claude-sonnet系列模型，可在图中位置选择更换。
 
 ### 通过千帆AppBuilder平台接入
 

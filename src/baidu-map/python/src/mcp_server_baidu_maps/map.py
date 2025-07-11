@@ -163,8 +163,14 @@ async def map_search_places(
         region = arguments.get("region", "全国") # 默认检索全国，防止出错
         location = arguments.get("location", "")
         radius = arguments.get("radius", "")
+        is_china = arguments.get("is_china", "true")
         
-        url = f"{api_url}/place/v2/search"
+        if is_china == "true":
+            url = f"{api_url}/place/v2/search"
+        elif is_china == "false":
+            url = f"{api_url}/place_abroad/v1/search"
+        else:
+            raise Exception("input `is_china` invaild, please reinput `is_china` with `true` or `false`")
         
         params = {
             "ak": f"{api_key}",
@@ -603,7 +609,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="map_search_places",
-            description="地点检索服务: 支持检索城市内的地点信息(最小到city级别), 也可支持圆形区域内的周边地点信息检索."
+            description="地点检索服务: 支持检索全球各城市内的地点信息(最小到city级别), 也可支持圆形区域内的周边地点信息检索."
                         "\n城市内检索: 检索某一城市内（目前最细到城市级别）的地点信息."
                         "\n周边检索: 设置圆心和半径, 检索圆形区域内的地点信息（常用于周边检索场景）.",
             inputSchema={
@@ -620,7 +626,7 @@ async def list_tools() -> list[types.Tool]:
                     },
                     "region": {
                         "type": "string",
-                        "description": "检索的城市名称, 可为行政区划名或citycode, 格式如'北京市'或'131', 不传默认为'全国'",
+                        "description": "检索的城市名称, 可为行政区划名或citycode, 格式如'北京市'或'东京'或'131', 不传默认为'全国'",
                     },
                     "location": {
                         "type": "string",
@@ -629,6 +635,10 @@ async def list_tools() -> list[types.Tool]:
                     "radius": {
                         "type": "integer",
                         "description": "圆形区域检索半径, 单位：米",
+                    },
+                    "is_china": {
+                        "type": "string",
+                        "description": "检索地是否在中国大陆以外地区, 可选值为`true`或`false`, 默认为`true`",
                     },
                 },
             }

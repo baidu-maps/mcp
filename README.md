@@ -51,7 +51,7 @@ Baidu Map MCP Server provides the following MCP-compliant APIs (tools):
 |--------------------------|----------------------------------------------------------------------------------------------|
 | `map_geocode`            | Convert address to geographic coordinates.                                                   |
 | `map_reverse_geocode`    | Get address, region, and POI info from coordinates.                                         |
-| `map_search_places`      | Search for POIs by keyword, type, region, or within a radius.                               |
+| `map_search_places`      | Search for global POIs by keyword, type, region, or within a radius.                               |
 | `map_place_details`      | Get detailed info for a POI by its unique ID.                                               |
 | `map_directions_matrix`  | Batch route planning for multiple origins/destinations (driving, walking, cycling).         |
 | `map_directions`         | Plan routes between two points (driving, walking, cycling, transit).                        |
