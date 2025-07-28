@@ -82,10 +82,15 @@ async def map_geocode(
     """
     try:
         address = arguments.get("address", "")
+        is_china = arguments.get("is_china", "true")
+        url = ""
         
         # 调用百度API
-        url = f"{api_url}/geocoding/v3/"
-        
+        if is_china == "true":
+            url = f"{api_url}/geocoding/v3/"
+        else:
+            url = f"{api_url}/api_geocoding_abroad/v1/"
+                
         # 设置请求参数
         params = {
             "ak": f"{api_key}",
@@ -299,11 +304,17 @@ async def map_directions(
         model = arguments.get("model", "driving")
         origin = arguments.get("origin", "")
         destination = arguments.get("destination", "")
+        is_china = arguments.get("is_china", "true")
+        url = ""
         
         # 检查输入是否为地址文本（不包含逗号）
         if not is_latlng(origin):
             # 调用地理编码服务获取起点经纬度
-            geocode_url = f"{api_url}/geocoding/v3/"
+            geocode_url = ""
+            if is_china == "true":
+                geocode_url = f"{api_url}/geocoding/v3/"
+            else:
+                geocode_url = f"{api_url}/api_geocoding_abroad/v1/"
             geocode_params = {
                 "ak": f"{api_key}",
                 "output": "json",
@@ -325,7 +336,11 @@ async def map_directions(
         
         if not is_latlng(destination):
             # 调用地理编码服务获取终点经纬度
-            geocode_url = f"{api_url}/geocoding/v3/"
+            geocode_url = ""
+            if is_china == "true":
+                geocode_url = f"{api_url}/geocoding/v3/"
+            else:
+                geocode_url = f"{api_url}/api_geocoding_abroad/v1/"
             geocode_params = {
                 "ak": f"{api_key}",
                 "output": "json",
@@ -346,7 +361,11 @@ async def map_directions(
                 destination = f"{location.get('lat')},{location.get('lng')}"
         
         # 调用路线规划服务
-        url = f"{api_url}/directionlite/v1/{model}"
+        url = ""
+        if is_china == "true":
+            url = f"{api_url}/directionlite/v1/{model}"
+        else:
+            url = f"{api_url}/direction_abroad/v1/{model}"
         
         params = {
             "ak": f"{api_key}",
@@ -386,8 +405,13 @@ async def map_weather(
     try:
         location = arguments.get("location", "")
         district_id = arguments.get("district_id", "")
+        is_china = arguments.get("is_china", "true")
+        url = ""
         
-        url = f"{api_url}/weather/v1/?"
+        if is_china == "true":
+            url = f"{api_url}/weather/v1/?"
+        else:
+            url = f"{api_url}/weather_abroad/v1/?"
         
         params = {
             "ak": f"{api_key}",
@@ -595,7 +619,11 @@ async def list_tools() -> list[types.Tool]:
                     "address": {
                         "type": "string",
                         "description": "待解析的地址.最多支持84个字节.可以输入两种样式的值, 分别是：\n1、标准的结构化地址信息, 如北京市海淀区上地十街十号\n2、支持*路与*路交叉口描述方式, 如北一环路和阜阳路的交叉路口\n第二种方式并不总是有返回结果, 只有当地址库中存在该地址描述时才有返回",
-                    }
+                    },
+                    "is_china": {
+                        "type": "string",
+                        "description": "查询地是否在中国大陆以外地区, 可选值为`true`或`false`, 默认为`true`",
+                    },
                 },
             }
         ),
@@ -716,6 +744,10 @@ async def list_tools() -> list[types.Tool]:
                         "type": "string",
                         "description": "终点位置名称或纬经度坐标, 纬度在前, 经度在后",
                     },
+                    "is_china": {
+                        "type": "string",
+                        "description": "查询地是否在中国大陆以外地区, 可选值为`true`或`false`, 默认为`true`",
+                    },
                 },
             }
         ),
@@ -733,6 +765,10 @@ async def list_tools() -> list[types.Tool]:
                     "district_id": {
                         "type": "string",
                         "description": "行政区划代码, 需保证为6位无符号整数",
+                    },
+                    "is_china": {
+                        "type": "string",
+                        "description": "查询地是否在中国大陆以外地区, 可选值为`true`或`false`, 默认为`true`",
                     },
                 },
             }
