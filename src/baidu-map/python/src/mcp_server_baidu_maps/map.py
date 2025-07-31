@@ -228,8 +228,13 @@ async def map_place_details(
     """
     try:
         uid = arguments.get("uid", "")
+        is_china = arguments.get("is_china", "true")
+        url = ""
         
-        url = f"{api_url}/place/v2/detail"
+        if is_china == "true":
+            url = f"{api_url}/place/v2/detail"
+        else:
+            url = f"{api_url}/place_abroad/v1/detail"
         
         params = {
             "ak": f"{api_key}",
@@ -692,6 +697,10 @@ async def list_tools() -> list[types.Tool]:
                     "uid": {
                         "type": "string",
                         "description": "POI的唯一标识",
+                    },
+                    "is_china": {
+                        "type": "string",
+                        "description": "查询地是否在中国大陆以外地区, 可选值为`true`或`false`, 默认为`true`",
                     },
                 },
             }
