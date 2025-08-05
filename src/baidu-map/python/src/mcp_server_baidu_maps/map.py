@@ -73,6 +73,29 @@ def is_latlng(text):
     # 简单经纬度范围校验
     return -90 <= lat <= 90 and -180 <= lng <= 180
 
+def mask_api_key(text: str) -> str:
+    """
+    信息脱敏函数，主要用于给某个字符串脱敏用户的ak
+    可以处理包含API key的复杂字符串，如URL、错误信息等
+    """
+    if not text or not api_key:
+        return text
+    
+    # 如果字符串中不包含api_key，直接返回
+    if api_key not in text:
+        return text
+    
+    # 计算脱敏后的API key
+    if len(api_key) <= 8:
+        # 如果api_key长度较短，只显示前2位和后2位
+        masked_key = api_key[:2] + '*' * (len(api_key) - 4) + api_key[-2:]
+    else:
+        # 如果api_key长度较长，显示前4位和后4位
+        masked_key = api_key[:4] + '*' * (len(api_key) - 8) + api_key[-4:]
+    
+    # 替换文本中所有出现的api_key
+    return text.replace(api_key, masked_key)
+
 
 async def map_geocode(
     name: str, arguments: dict
@@ -106,7 +129,7 @@ async def map_geocode(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -146,7 +169,7 @@ async def map_reverse_geocode(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -210,7 +233,8 @@ async def map_search_places(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error.")
+            
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -251,7 +275,7 @@ async def map_place_details(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -289,7 +313,7 @@ async def map_directions_matrix(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -334,7 +358,7 @@ async def map_directions(
                 
                 if geocode_result.get("status") != 0:
                     error_msg = geocode_result.get("message", "input `origin` invaild, please reinput more detail address")
-                    raise Exception(f"Geocoding API error: {error_msg}")
+                    raise Exception(f"Geocoding API error: {mask_api_key(error_msg)}")
                 
                 location = geocode_result.get("result", {}).get("location", {})
                 origin = f"{location.get('lat')},{location.get('lng')}"
@@ -360,7 +384,7 @@ async def map_directions(
                 
                 if geocode_result.get("status") != 0:
                     error_msg = geocode_result.get("message", "input `destination` invaild, please reinput more detail address")
-                    raise Exception(f"Geocoding API error: {error_msg}")
+                    raise Exception(f"Geocoding API error: {mask_api_key(error_msg)}")
                 
                 location = geocode_result.get("result", {}).get("location", {})
                 destination = f"{location.get('lat')},{location.get('lng')}"
@@ -387,7 +411,7 @@ async def map_directions(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         # if model == 'transit':
         #     return [types.TextContent(type="text", text=response.text)]
@@ -436,7 +460,7 @@ async def map_weather(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -470,7 +494,7 @@ async def map_ip_location(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -521,7 +545,7 @@ async def map_road_traffic(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error: {mask_api_key(error_msg)}")
  
         return [types.TextContent(type="text", text=response.text)]
  
@@ -568,7 +592,7 @@ async def map_poi_extract(
 
             if submit_result.get("status") != 0:
                 error_msg = submit_result.get("message", "unknown error")
-                raise Exception(f"API response error: {error_msg}")
+                raise Exception(f"API response error: {mask_api_key(error_msg)}")
             
 
             map_id = submit_result.get("result", {}).get("map_id")

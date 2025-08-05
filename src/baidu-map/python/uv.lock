@@ -150,7 +150,7 @@ cli = [
 
 [[package]]
 name = "mcp-server-baidu-maps"
-version = "0.2.0"
+version = "0.2.3"
 source = { virtual = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
