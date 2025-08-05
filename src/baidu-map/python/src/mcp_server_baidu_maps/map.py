@@ -177,7 +177,7 @@ async def map_search_places(
             "output": "json",
             "query": f"{query}",
             "type": f"{tag}",
-            "photo_show": "true",
+            # "photo_show": "true",
             "region_limit": "true",
             "scope": 2,
             "from": "py_mcp",
