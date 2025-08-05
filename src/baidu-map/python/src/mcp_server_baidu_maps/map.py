@@ -210,7 +210,7 @@ async def map_search_places(
  
         if result.get("status") != 0:
             error_msg = result.get("message", "unknown error")
-            raise Exception(f"API response error: {error_msg}")
+            raise Exception(f"API response error.")
  
         return [types.TextContent(type="text", text=response.text)]
  
