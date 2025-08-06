@@ -11,7 +11,6 @@ import re
 # 创建MCP服务器实例
 mcp = FastMCP(
     name="mcp-server-baidu-maps",
-    version="2.0.0",
     instructions="This is a MCP server for Baidu Maps."
 )
 
