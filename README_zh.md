@@ -14,7 +14,9 @@
 
 1. 地理编码 `map_geocode`
     - 描述: 将地址解析为对应的位置坐标, 地址结构越完整, 地址内容越准确, 解析的坐标精度越高
-    - 参数: `address` 地址信息
+    - 参数: 
+      - `address` 地址信息
+      - `is_china` 地址是否在中国大陆以外地区，默认为`is_china=true`
     - 输出: `location` 纬经度坐标
   
 2. 逆地理编码 `map_reverse_geocode`
@@ -37,7 +39,9 @@
 
 4. 地点详情检索 `map_place_details`
     - 描述: 根据POI的uid，检索其相关的详情信息, 如评分、营业时间等（不同类型POI对应不同类别详情数据）
-    - 参数: `uid`POI的唯一标识
+    - 参数: 
+      - `uid` POI的唯一标识
+      - `is_china` 检索目标是否在中国大陆以外地区，默认为`is_china=true`
     - 输出: POI详情, 包含`name`, `location`, `address`, `brand`, `price`等
   
 5. 批量算路 `map_directions_matrix`
@@ -54,6 +58,7 @@
       - `origin` 起点位置名称或纬经度, 格式为`origin=lat,lng`
       - `destination` 终点位置名称或纬经度, 格式为`destination=lat,lng`
       - `model` 出行类型, 可选取值包括 `driving`, `walking`, `riding`, `transit`, 默认使用`driving`
+      - `is_china` 是否在中国大陆以外地区，默认为`is_china=true`
     - 输出: 路线详情,包含`steps`, `distance`, `duration`等 
   
 7. 天气查询 `map_weather`
@@ -61,6 +66,7 @@
     - 参数: 
       - `district_id` 行政区划编码
       - `location` 经纬度坐标, 格式为`location=lng, lat`
+      - `is_china` 是否在中国大陆以外地区，默认为`is_china=true`
     - 输出: 天气信息, 包含`temperature`, `weather`, `wind`等
 
 8. IP定位 `map_ip_location`
